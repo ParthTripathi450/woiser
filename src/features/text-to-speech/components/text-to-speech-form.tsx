@@ -14,9 +14,8 @@ const ttsFormSchema = z.object({
   text: z.string().min(1, "Please enter some text"),
   voiceId: z.string().min(1, "Please select a voice"),
   temperature: z.number(),
-  topP: z.number(),
-  topK: z.number(),
-  repetitionPenalty: z.number(),
+  exaggeration: z.number(),
+  cfgWeight: z.number(),
 });
 
 export type TTSFormValues = z.infer<typeof ttsFormSchema>;
@@ -25,9 +24,8 @@ export const defaultTTSValues: TTSFormValues = {
   text: "",
   voiceId: "",
   temperature: 0.8,
-  topP: 0.95,
-  topK: 1000,
-  repetitionPenalty: 1.2,
+  exaggeration: 0.5,
+  cfgWeight: 0.5,
 };
 
 export const ttsFormOptions = formOptions({
@@ -61,9 +59,8 @@ export function TextToSpeechForm({
           text: value.text.trim(),
           voiceId: value.voiceId,
           temperature: value.temperature,
-          topP: value.topP,
-          topK: value.topK,
-          repetitionPenalty: value.repetitionPenalty,
+          exaggeration: value.exaggeration,
+          cfgWeight: value.cfgWeight,
         });
 
         toast.success("Audio generated successfully!");

@@ -7,12 +7,15 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "./env";
 
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+// Supabase Storage exposes an S3-compatible endpoint, so the standard AWS SDK
+// works unchanged. It requires path-style addressing.
+const s3 = new S3Client({
+  region: env.SUPABASE_S3_REGION,
+  endpoint: env.SUPABASE_S3_ENDPOINT,
+  forcePathStyle: true,
   credentials: {
-    accessKeyId: env.R2_ACCESS_KEY_ID,
-    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    accessKeyId: env.SUPABASE_S3_ACCESS_KEY_ID,
+    secretAccessKey: env.SUPABASE_S3_SECRET_ACCESS_KEY,
   },
 });
 
@@ -27,9 +30,9 @@ export async function uploadAudio({
   key,
   contentType = "audio/wav",
 }: UploadAudioOptions): Promise<void> {
-  await r2.send(
+  await s3.send(
     new PutObjectCommand({
-      Bucket: env.R2_BUCKET_NAME,
+      Bucket: env.STORAGE_BUCKET,
       Key: key,
       Body: buffer,
       ContentType: contentType,
@@ -38,18 +41,21 @@ export async function uploadAudio({
 };
 
 export async function deleteAudio(key: string): Promise<void> {
-  await r2.send(
+  await s3.send(
     new DeleteObjectCommand({
-      Bucket: env.R2_BUCKET_NAME,
+      Bucket: env.STORAGE_BUCKET,
       Key: key,
     }),
   );
 };
 
-export async function getSignedAudioUrl(key: string): Promise<string> {
+export async function getSignedAudioUrl(
+  key: string,
+  expiresIn = 3600,
+): Promise<string> {
   const command = new GetObjectCommand({
-    Bucket: env.R2_BUCKET_NAME,
+    Bucket: env.STORAGE_BUCKET,
     Key: key,
   });
-  return getSignedUrl(r2, command, { expiresIn: 3600 }); // 1 hour
+  return getSignedUrl(s3, command, { expiresIn });
 };

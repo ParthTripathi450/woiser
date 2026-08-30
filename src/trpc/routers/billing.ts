@@ -1,14 +1,27 @@
 import { TRPCError } from "@trpc/server";
 import { polar } from "@/lib/polar";
+import { billingEnabled, getBillingStatus } from "@/lib/billing";
 import { env } from "@/lib/env";
 import { createTRPCRouter, orgProcedure } from "../init";
 
+function requirePolar() {
+  if (!billingEnabled || !polar || !env.POLAR_PRODUCT_ID) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message: "BILLING_DISABLED",
+    });
+  }
+  return polar;
+}
+
 export const billingRouter = createTRPCRouter({
   createCheckout: orgProcedure.mutation(async ({ ctx }) => {
-    const result = await polar.checkouts.create({
-      products: [env.POLAR_PRODUCT_ID],
+    const client = requirePolar();
+
+    const result = await client.checkouts.create({
+      products: [env.POLAR_PRODUCT_ID!],
       externalCustomerId: ctx.orgId,
-      successUrl: process.env.APP_URL,
+      successUrl: env.APP_URL,
     });
 
     if (!result.url) {
@@ -22,7 +35,9 @@ export const billingRouter = createTRPCRouter({
   }),
 
   createPortalSession: orgProcedure.mutation(async ({ ctx }) => {
-    const result = await polar.customerSessions.create({
+    const client = requirePolar();
+
+    const result = await client.customerSessions.create({
       externalCustomerId: ctx.orgId,
     });
 
@@ -37,34 +52,9 @@ export const billingRouter = createTRPCRouter({
   }),
 
   getStatus: orgProcedure.query(async ({ ctx }) => {
-    try {
-      const customerState = await polar.customers.getStateExternal({
-        externalId: ctx.orgId,
-      });
-
-      const hasActiveSubscription =
-        (customerState.activeSubscriptions ?? []).length > 0;
-
-      // Sum up estimated costs from all meters across active subscriptions
-      let estimatedCostCents = 0;
-      for (const sub of customerState.activeSubscriptions ?? []) {
-        for (const meter of sub.meters ?? []) {
-          estimatedCostCents += meter.amount ?? 0;
-        }
-      }
-
-      return {
-        hasActiveSubscription,
-        customerId: customerState.id,
-        estimatedCostCents,
-      };
-    } catch {
-      // Customer doesn't exist yet in Polar
-      return {
-        hasActiveSubscription: false,
-        customerId: null,
-        estimatedCostCents: 0,
-      };
-    }
+    return {
+      ...(await getBillingStatus(ctx.orgId)),
+      billingEnabled,
+    };
   }),
 });

@@ -46,9 +46,8 @@ export function TextToSpeechDetailView({
     text: data.text,
     voiceId: resolvedVoiceId,
     temperature: data.temperature,
-    topP: data.topP,
-    topK: data.topK,
-    repetitionPenalty: data.repetitionPenalty,
+    exaggeration: data.exaggeration,
+    cfgWeight: data.cfgWeight,
   };
 
   // Use the denormalized voiceName snapshot instead of a populated voice relation

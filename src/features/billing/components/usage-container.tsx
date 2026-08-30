@@ -101,6 +101,10 @@ export function UsageContainer() {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.billing.getStatus.queryOptions());
 
+  // Billing gated off: no checkout or portal exists to link to, so show nothing
+  // rather than a card whose buttons lead nowhere.
+  if (data && !data.billingEnabled) return null;
+
   return (
     <div className="group-data-[collapsible=icon]:hidden bg-background border border-border rounded-lg p-3">
       {data?.hasActiveSubscription ? (

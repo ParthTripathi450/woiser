@@ -43,7 +43,7 @@ model Voice {
   category    VoiceCategory @default(GENERAL)
   language    String        @default("en-US")
   variant     VoiceVariant
-  r2ObjectKey String?
+  objectKey   String?
 
   generations Generation[]
 
@@ -62,13 +62,12 @@ model Generation {
   voiceId String?
   voice   Voice?  @relation(fields: [voiceId], references: [id], onDelete: SetNull)
 
-  text              String
-  voiceName         String
-  r2ObjectKey       String?
-  temperature       Float
-  topP              Float
-  topK              Int
-  repetitionPenalty Float
+  text         String
+  voiceName    String
+  objectKey    String?
+  temperature  Float
+  exaggeration Float
+  cfgWeight    Float
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

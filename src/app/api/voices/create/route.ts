@@ -1,10 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { parseBuffer } from "music-metadata";
 import { z } from "zod";
-import { polar } from "@/lib/polar";
-import { env } from "@/lib/env";
+import { hasActiveSubscription, recordUsage, METERS } from "@/lib/billing";
 import { prisma } from "@/lib/db";
-import { uploadAudio } from "@/lib/r2";
+import { uploadAudio } from "@/lib/storage";
 import { VOICE_CATEGORIES } from "@/features/voices/data/voice-categories";
 import type { VoiceCategory } from "@/generated/prisma/client";
 
@@ -25,18 +24,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-    // Check for active subscription before voice creation
-  try {
-    const customerState = await polar.customers.getStateExternal({
-      externalId: orgId,
-    });
-    const hasActiveSubscription =
-      (customerState.activeSubscriptions ?? []).length > 0;
-    if (!hasActiveSubscription) {
-      return Response.json({ error: "SUBSCRIPTION_REQUIRED" }, { status: 403 });
-    }
-  } catch {
-    // Customer doesn't exist in Polar yet -> no subscription
+  // No-op while billing is gated off.
+  if (!(await hasActiveSubscription(orgId))) {
     return Response.json({ error: "SUBSCRIPTION_REQUIRED" }, { status: 403 });
   }
 
@@ -132,11 +121,11 @@ export async function POST(request: Request) {
     });
 
     createdVoiceId = voice.id;
-    const r2ObjectKey = `voices/orgs/${orgId}/${voice.id}`;
+    const objectKey = `voices/orgs/${orgId}/${voice.id}`;
 
     await uploadAudio({
       buffer: Buffer.from(fileBuffer),
-      key: r2ObjectKey,
+      key: objectKey,
       contentType: normalizedContentType,
     });
 
@@ -145,7 +134,7 @@ export async function POST(request: Request) {
         id: voice.id,
       },
       data: {
-        r2ObjectKey,
+        objectKey,
       },
     });
   } catch {
@@ -165,21 +154,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Ingest usage event to Polar (fire-and-forget, don't block response)
-  polar.events
-    .ingest({
-      events: [
-        {
-          name: env.POLAR_METER_VOICE_CREATION,
-          externalCustomerId: orgId,
-          metadata: {},
-          timestamp: new Date(),
-        },
-      ],
-    })
-    .catch(() => {
-      // Silently fail - don't break the user experience for metering errors
-    });
+  recordUsage(orgId, METERS.voiceCreation);
 
   return Response.json(
     { name, message: "Voice created successfully" },

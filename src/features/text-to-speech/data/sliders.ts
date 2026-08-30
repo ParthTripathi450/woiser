@@ -1,5 +1,5 @@
 interface Slider {
-  id: "temperature" | "topP" | "topK" | "repetitionPenalty";
+  id: "temperature" | "exaggeration" | "cfgWeight";
   label: string;
   leftLabel: string;
   rightLabel: string;
@@ -20,34 +20,24 @@ export const sliders: Slider[] = [
     step: 0.1,
     defaultValue: 0.8,
   },
-    {
-    id: "topP",
-    label: "Voice Variety",
-    leftLabel: "Stable",
-    rightLabel: "Dynamic",
-    min: 0,
-    max: 1,
-    step: 0.05,
-    defaultValue: 0.95,
-  },
   {
-    id: "topK",
+    id: "exaggeration",
     label: "Expression Range",
     leftLabel: "Subtle",
     rightLabel: "Dramatic",
-    min: 1,
-    max: 10000,
-    step: 100,
-    defaultValue: 1000,
+    min: 0.25,
+    max: 2,
+    step: 0.05,
+    defaultValue: 0.5,
   },
   {
-    id: "repetitionPenalty",
+    id: "cfgWeight",
     label: "Natural Flow",
     leftLabel: "Rhythmic",
     rightLabel: "Varied",
-    min: 1,
-    max: 2,
-    step: 0.1,
-    defaultValue: 1.2,
+    min: 0,
+    max: 1,
+    step: 0.05,
+    defaultValue: 0.5,
   },
 ];

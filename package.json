@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "postinstall": "prisma generate",
-    "lint": "eslint",
-    "sync-api": "tsx scripts/sync-api.ts"
+    "lint": "eslint"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.997.0",

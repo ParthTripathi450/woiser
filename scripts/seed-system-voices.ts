@@ -25,10 +25,11 @@ const SYSTEM_VOICES_DIR = path.join(
 
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1),
-  R2_ACCOUNT_ID: z.string().min(1),
-  R2_ACCESS_KEY_ID: z.string().min(1),
-  R2_SECRET_ACCESS_KEY: z.string().min(1),
-  R2_BUCKET_NAME: z.string().min(1),
+  STORAGE_BUCKET: z.string().min(1),
+  SUPABASE_S3_ENDPOINT: z.string().min(1),
+  SUPABASE_S3_REGION: z.string().min(1),
+  SUPABASE_S3_ACCESS_KEY_ID: z.string().min(1),
+  SUPABASE_S3_SECRET_ACCESS_KEY: z.string().min(1),
 });
 
 const env = envSchema.parse(process.env);
@@ -36,12 +37,13 @@ const env = envSchema.parse(process.env);
 const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+const storage = new S3Client({
+  region: env.SUPABASE_S3_REGION,
+  endpoint: env.SUPABASE_S3_ENDPOINT,
+  forcePathStyle: true,
   credentials: {
-    accessKeyId: env.R2_ACCESS_KEY_ID,
-    secretAccessKey: env.R2_SECRET_ACCESS_KEY,
+    accessKeyId: env.SUPABASE_S3_ACCESS_KEY_ID,
+    secretAccessKey: env.SUPABASE_S3_SECRET_ACCESS_KEY,
   },
 });
 
@@ -171,13 +173,13 @@ async function uploadSystemVoiceAudio({
   contentType: string;
 }) {
   const commandInput: PutObjectCommandInput = {
-    Bucket: env.R2_BUCKET_NAME,
+    Bucket: env.STORAGE_BUCKET,
     Key: key,
     Body: buffer,
     ContentType: contentType,
   };
 
-  await r2.send(new PutObjectCommand(commandInput));
+  await storage.send(new PutObjectCommand(commandInput));
 }
 
 async function seedSystemVoice(name: string) {
@@ -192,11 +194,11 @@ async function seedSystemVoice(name: string) {
   });
 
   if (existingSystemVoice) {
-    const r2ObjectKey = `voices/system/${existingSystemVoice.id}`;
+    const objectKey = `voices/system/${existingSystemVoice.id}`;
     const meta = systemVoiceMetadata[name];
 
     await uploadSystemVoiceAudio({
-      key: r2ObjectKey,
+      key: objectKey,
       buffer,
       contentType,
     });
@@ -204,7 +206,7 @@ async function seedSystemVoice(name: string) {
     await prisma.voice.update({
       where: { id: existingSystemVoice.id },
       data: {
-        r2ObjectKey,
+        objectKey,
         ...(meta && {
           description: meta.description,
           category: meta.category,
@@ -233,11 +235,11 @@ async function seedSystemVoice(name: string) {
     },
   });
 
-  const r2ObjectKey = `voices/system/${voice.id}`;
+  const objectKey = `voices/system/${voice.id}`;
 
   try {
     await uploadSystemVoiceAudio({
-      key: r2ObjectKey,
+      key: objectKey,
       buffer,
       contentType,
     });
@@ -247,7 +249,7 @@ async function seedSystemVoice(name: string) {
         id: voice.id,
       },
       data: {
-        r2ObjectKey,
+        objectKey,
       },
     });
   } catch (error) {

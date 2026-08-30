@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@/lib/db";
-import { deleteAudio } from "@/lib/r2";
+import { deleteAudio } from "@/lib/storage";
 import { createTRPCRouter, orgProcedure } from "../init";
 
 export const voicesRouter = createTRPCRouter({
@@ -78,7 +78,7 @@ export const voicesRouter = createTRPCRouter({
             variant: "CUSTOM",
             orgId: ctx.orgId,
           },
-          select: { id: true, r2ObjectKey: true },
+          select: { id: true, objectKey: true },
         });
 
         if (!voice) {
@@ -90,9 +90,9 @@ export const voicesRouter = createTRPCRouter({
 
         await prisma.voice.delete({ where: { id: voice.id } });
 
-        if (voice.r2ObjectKey) {
+        if (voice.objectKey) {
           // In production, consider background jobs, retires, cron jobs etc.
-          await deleteAudio(voice.r2ObjectKey).catch(() => {});
+          await deleteAudio(voice.objectKey).catch(() => {});
         }
 
         return { success: true };

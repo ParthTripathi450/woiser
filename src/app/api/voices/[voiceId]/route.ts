@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/db";
-import { getSignedAudioUrl } from "@/lib/r2";
+import { getSignedAudioUrl } from "@/lib/storage";
 
 export async function GET(
   _request: Request,
@@ -19,7 +19,7 @@ export async function GET(
     select: {
       variant: true,
       orgId: true,
-      r2ObjectKey: true,
+      objectKey: true,
     },
   });
 
@@ -31,11 +31,11 @@ export async function GET(
     return new Response("Not found", { status: 404 });
   }
 
-  if (!voice.r2ObjectKey) {
+  if (!voice.objectKey) {
     return new Response("Voice audio is not available yet", { status: 409 });
   }
 
-  const signedUrl = await getSignedAudioUrl(voice.r2ObjectKey);
+  const signedUrl = await getSignedAudioUrl(voice.objectKey);
   const audioResponse = await fetch(signedUrl);
 
   if (!audioResponse.ok) {
