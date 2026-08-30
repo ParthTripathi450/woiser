@@ -12,8 +12,6 @@
 
 ## About this fork
 
-This is a fork of [code-with-antonio/resonance](https://github.com/code-with-antonio/resonance),
-reworked so it can be run **without a payment method of any kind**.
 
 Upstream depends on Cloudflare R2 for storage and Modal for GPU inference. Both require a card on
 file, even on their free tiers. This fork replaces them and gates everything else:
