@@ -1,228 +1,168 @@
 <div align="center">
 
-<img src="https://33uee5uclf.ufs.sh/f/fa600f97-6cf2-4759-8641-3093d13591bf-6rrk6b.png" alt="Resonance" width="720" />
-
-<br />
-<br />
-
 <h1>Resonance</h1>
 
-<p>The open-source ElevenLabs alternative.</p>
+<p>Open-source text-to-speech and voice cloning, running entirely on free infrastructure.</p>
 
-<p>AI-powered text-to-speech and voice cloning built with Next.js 16, React 19, and Chatterbox TTS.</p>
-
-<br />
-
-[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/SioRb1?referralCode=ANTONIO&utm_medium=integration&utm_source=template&utm_campaign=generic)
-
-<br />
-
-<p>
-  <a href="https://cwa.run/clerk"><img src="https://img.shields.io/badge/Clerk-6C47FF?style=for-the-badge&logo=clerk&logoColor=white" alt="Clerk" /></a>&nbsp;
-  <a href="https://cwa.run/polar"><img src="https://img.shields.io/badge/Polar-000000?style=for-the-badge&logo=polar&logoColor=white" alt="Polar" /></a>&nbsp;
-  <a href="https://cwa.run/railway"><img src="https://img.shields.io/badge/Railway-0B0D0E?style=for-the-badge&logo=railway&logoColor=white" alt="Railway" /></a>&nbsp;
-  <a href="https://cwa.run/sentry"><img src="https://img.shields.io/badge/Sentry-362D59?style=for-the-badge&logo=sentry&logoColor=white" alt="Sentry" /></a>&nbsp;
-  <a href="https://cwa.run/coderabbit"><img src="https://img.shields.io/badge/CodeRabbit-FF6C37?style=for-the-badge&logo=rabbitmq&logoColor=white" alt="CodeRabbit" /></a>&nbsp;
-  <a href="https://cwa.run/prisma"><img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" /></a>
-</p>
+<p>Next.js 16 · React 19 · tRPC · Prisma · Chatterbox TTS on Hugging Face ZeroGPU</p>
 
 </div>
 
-<br />
+---
 
-## Tutorial
+## About this fork
 
-[![Watch on YouTube](https://img.shields.io/badge/Watch_the_Full_Course-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://cwa.run/resonance-gh-yt)
+This is a fork of [code-with-antonio/resonance](https://github.com/code-with-antonio/resonance),
+reworked so it can be run **without a payment method of any kind**.
 
-Learn how to build this entire project from scratch in a **free 12-hour video course** on YouTube. The tutorial covers every feature  - authentication, text-to-speech, voice cloning, billing, deployment, and more.
+Upstream depends on Cloudflare R2 for storage and Modal for GPU inference. Both require a card on
+file, even on their free tiers. This fork replaces them and gates everything else:
 
-Each chapter has a matching branch so you can check out the code at any point in the tutorial:
+| Concern | Upstream | This fork | Card needed |
+|---|---|---|---|
+| Audio storage | Cloudflare R2 | **Supabase Storage** (S3-compatible API) | No |
+| TTS inference | Modal (A10G + FastAPI) | **Hugging Face Space** (Chatterbox on ZeroGPU) | No |
+| Database | Prisma Postgres | Prisma Postgres | No |
+| Auth | Clerk | Clerk | No |
+| Billing | Polar, required | Polar behind `BILLING_ENABLED`, **off by default** | No |
+| Errors | Sentry, hardcoded DSN | Sentry only if `SENTRY_DSN` is set | No |
 
-| Branch | Chapter |
-|--------|---------|
-| `main` | Final project (all chapters combined) |
-| `02-dashboard` | Dashboard layout and navigation |
-| `03-text-to-speech-ui` | Text-to-speech UI |
-| `04-backend-infrastructure` | Backend infrastructure (tRPC, R2, Prisma) |
-| `05-voice-selection` | Voice selection and library |
-| `06-tts-generation-audio-player` | TTS generation and audio player |
-| `07-tts-history-polish` | TTS history and polish |
-| `bonus-sentry-error-monitoring` | Bonus: Sentry error monitoring |
-| `08-voice-management` | Voice management and cloning |
-| `09-billing` | Billing and usage metering |
-
-```bash
-git checkout 04-backend-infrastructure  # example: jump to Chapter 4
-```
+Everything below reflects this fork. Upstream's setup instructions do not apply.
 
 ## Features
 
-- **Text-to-Speech**  - Generate speech from text with adjustable creativity, variety, expression, and flow parameters
-- **Zero-Shot Voice Cloning**  - Upload or record a voice sample (10s minimum) and clone it instantly  - no fine-tuning required
-- **20 Built-in Voices**  - Pre-seeded system voices across 12 categories and 5 locales
-- **Waveform Audio Player**  - WaveSurfer.js visualization with seek, play/pause, and download
-- **Multi-Tenant**  - Team-based access via Clerk Organizations with full data isolation
-- **Usage-Based Billing**  - Pay-as-you-go character metering with configurable pricing via Polar products and meters
-- **Generation History**  - Browse and replay past generations with preserved voice metadata
-- **Fully Responsive**  - Mobile-first with bottom drawers, compact controls, and adaptive layouts
+- **Text-to-speech** with adjustable creativity, expression range and flow
+- **Zero-shot voice cloning** — upload or record a 10s+ sample, no fine-tuning
+- **20 built-in voices** across 12 categories and 5 locales
+- **Waveform player** (WaveSurfer.js) with seek, play/pause and download
+- **Multi-tenant** — team-based access and data isolation via Clerk Organizations
+- **Generation history** with preserved voice metadata
+- **Responsive** — mobile drawers, adaptive layouts
 
-## Getting Started
+## How it fits together
+
+Audio is never exposed by public URL. The Supabase bucket stays private; the app serves audio
+through its own authenticated proxy routes (`/api/audio/[id]`, `/api/voices/[id]`), which re-check
+Clerk auth and org ownership, presign a short-lived URL, and stream the bytes back.
+
+For generation, the app hands the Space a **presigned URL for the reference clip** rather than
+uploading it — the Space fetches the voice itself, so a generation is a single round trip.
+
+ZeroGPU only supports the Gradio SDK, so `src/lib/tts.ts` speaks Gradio's two-phase protocol: POST
+the inputs to receive an event id, then read the result off an SSE stream.
+
+## Setup
 
 ### Prerequisites
 
-- Node.js **20.9** or later
-- [Prisma Postgres](https://cwa.run/prisma) database
-- [Clerk](https://cwa.run/clerk) account (with Organizations enabled)
-- [Cloudflare R2](https://cwa.run/cloudflare-r2) bucket
-- [Modal](https://cwa.run/modal) account (for GPU-hosted TTS)
-- [Polar](https://cwa.run/polar) account (for billing)
+- Node.js 20.9+
+- A [Prisma Postgres](https://www.prisma.io/postgres) database (free, no card)
+- A [Clerk](https://clerk.com) account with **Organizations enabled** (free, no card)
+- A [Supabase](https://supabase.com) project (free, no card)
+- A [Hugging Face](https://huggingface.co) account **older than 30 days** with a verified email —
+  this is what unlocks hosting a ZeroGPU Space (free, no card)
 
-### 1. Clone and install
+### 1. Install
 
 ```bash
-git clone https://github.com/code-with-antonio/resonance.git
+git clone <your-fork-url>
 cd resonance
 npm install
-```
-
-### 2. Configure environment
-
-```bash
 cp .env.example .env
 ```
 
-Fill in the blank values in `.env`. Sensible defaults (Clerk routes, Polar meter names, `APP_URL`, etc.) are pre-filled.
+### 2. Storage — Supabase
 
-### 3. Set up Polar billing
+Create a project, then **Storage → New bucket**. Keep it **private**.
 
-In your [Polar](https://cwa.run/polar) dashboard, create two **meters** under **Meters**:
+Under **Project Settings → Storage** collect the S3 endpoint and region, then generate an S3 access
+key pair. Fill in `STORAGE_BUCKET`, `SUPABASE_S3_ENDPOINT`, `SUPABASE_S3_REGION`,
+`SUPABASE_S3_ACCESS_KEY_ID` and `SUPABASE_S3_SECRET_ACCESS_KEY`.
 
-1. **Voice Creation** meter
-   - Filter: Name equals `voice_creation`
-   - Aggregation: **Count**
+> Supabase only supplies storage here. The database is Prisma Postgres.
 
-2. **Text-to-Speech Characters** meter
-   - Filter: Name equals `tts_generation`
-   - Aggregation: **Sum** over `characters`
+### 3. TTS — Hugging Face Space
 
-Then create a new **product** with **Recurring subscription** pricing. Under **Price Type**, add two metered prices:
+Duplicate [ResembleAI/Chatterbox](https://huggingface.co/spaces/ResembleAI/Chatterbox) and select
+**ZeroGPU** hardware. Create a **Read** token under
+[Access Tokens](https://huggingface.co/settings/tokens).
 
-1. Click **Add metered price** and select the **Text-to-Speech Characters** meter
-   - Set the **Amount per unit** (price per character, e.g. `$0.003`)
-   - Optionally set a **Cap amount** (e.g. `$100`)
+Set `HF_SPACE_ID` (e.g. `your-username/Chatterbox`) and `HF_TOKEN`.
 
-2. Click **Add metered price** again and select the **Voice Creation** meter
-   - Set the **Amount per unit** (price per voice generation, e.g. `$0.25`)
-   - Optionally set a **Cap amount** (e.g. `$100`)
+### 4. Auth — Clerk
 
-With only metered prices, the subscription starts at **$0/month** and scales with usage. If you want a baseline subscription fee (e.g. $20/month), add a third price to the same product — select a **fixed price** instead of a metered price. This requires no code changes since fixed prices are handled entirely by Polar.
+Enable **Organizations** in the Clerk dashboard. Without it every protected route redirects to
+`/org-selection` forever. Set `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY`.
 
-Ensure **Allow multiple subscriptions** is turned **off** under **Settings > Billing** (this is the Polar default).
-
-Copy the product ID into `POLAR_PRODUCT_ID`. The meter filter names and aggregation property must match the `POLAR_METER_*` env variables.
-
-### 4. Set up the database
+### 5. Database
 
 ```bash
 npx prisma migrate deploy
+npx prisma db seed        # 20 system voices into Postgres + Supabase (~30 MB)
 ```
 
-### 5. Deploy the TTS engine
-
-The included `chatterbox_tts.py` is adapted from [Modal's official Chatterbox TTS example](https://cwa.run/modal-tts), modified to read voice reference audio directly from your R2 bucket instead of a Modal Volume.
-
-Before deploying, update `chatterbox_tts.py` with your R2 credentials:
-
-```python
-R2_BUCKET_NAME = "<your-r2-bucket-name-here>"
-R2_ACCOUNT_ID = "<your-r2-account-id-here>"
-```
-
-Then create the required secrets in your [Modal dashboard](https://cwa.run/modal-secrets):
-
-| Secret Name | Keys | Description |
-|-------------|------|-------------|
-| `cloudflare-r2` | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | R2 API credentials (used for bucket mount) |
-| `chatterbox-api-key` | `CHATTERBOX_API_KEY` | API key to protect the endpoint (use any strong random string) |
-| `hf-token` | `HF_TOKEN` | Hugging Face token (for downloading the Chatterbox model weights) |
-
-Deploy to Modal:
-
-```bash
-modal deploy chatterbox_tts.py
-```
-
-This deploys Chatterbox TTS to a serverless NVIDIA A10G GPU on Modal. The container mounts your R2 bucket read-only for direct access to voice reference audio. Use the resulting Modal URL as `CHATTERBOX_API_URL` in your `.env.local`.
-
-> **Note:** The first request after a period of inactivity may take longer due to cold starts as Modal provisions the GPU container.
-
-Once deployed, generate the type-safe Chatterbox client from the OpenAPI spec:
-
-```bash
-npm run sync-api
-```
-
-### 6. Seed voices
-
-```bash
-npx prisma db seed
-```
-
-Seeds 20 built-in voices to the database and R2. The system voice WAV files are included in the repository and originate from [Modal's voice sample pack](https://modal-cdn.com/blog/audio/chatterbox-tts-voices.zip).
-
-### 7. Run
+### 6. Run
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+## Deploying
 
-## Self-Hosting
+Deploy to [Vercel](https://vercel.com) — the Hobby tier is free with no card, and covers this app.
 
-Resonance is designed to be self-hosted. You'll need:
+1. Import the repo at [vercel.com/new](https://vercel.com/new).
+2. Add every variable from your `.env` to the project's environment variables, setting `APP_URL` to
+   the deployed URL. Leave `SKIP_ENV_VALIDATION` empty so the build validates config.
+3. Deploy. `postinstall` runs `prisma generate`, which is required because the client is gitignored.
 
-1. **A PostgreSQL database**  - [Prisma Postgres](https://cwa.run/prisma) (recommended), or any managed Postgres
-2. **Cloudflare R2**  - For audio storage (S3-compatible, generous free tier)
-3. **Modal**  - For serverless GPU inference (pay-per-second billing)
-4. **Clerk**  - For authentication and multi-tenancy
-5. **Polar**  - For metered billing (use sandbox mode with card `4242 4242 4242 4242` for testing)
+Notes:
+- Clerk **development** keys work on a `*.vercel.app` domain. A Clerk production instance needs a
+  domain you own, so keep the dev keys until you have one.
+- Generation is long-running. Keep **Fluid compute** enabled (the default) — it raises the Hobby
+  function ceiling from 60s to 300s.
+- Vercel's Hobby tier is for personal, non-commercial projects.
 
-Deploy the Next.js app to any Node.js host (Railway, Docker, etc.).
+## Limits worth knowing
 
-## Project Structure
+These come from the free tiers and shape the app's defaults:
 
-```
-src/
-├── app/                        # Next.js App Router
-│   ├── (dashboard)/            # Protected routes (home, TTS, voices)
-│   ├── api/                    # Audio proxy routes + tRPC handler
-│   ├── sign-in/                # Clerk auth pages
-│   └── sign-up/
-├── components/                 # Shared UI components (shadcn/ui + custom)
-├── features/
-│   ├── dashboard/              # Home page, quick actions
-│   ├── text-to-speech/         # TTS form, audio player, settings, history
-│   ├── voices/                 # Voice library, creation, recording
-│   └── billing/                # Usage display, checkout
-├── hooks/                      # App-wide hooks
-├── lib/                        # Core: db, r2, polar, env, chatterbox client
-├── trpc/                       # tRPC routers, client, server helpers
-├── generated/                  # Prisma client
-└── types/                      # Generated API types
-```
+| Limit | Value | Consequence |
+|---|---|---|
+| ZeroGPU quota | 5 min GPU/day (free HF account) | ~40–60 generations/day |
+| ZeroGPU call cap | 60s default | `TEXT_MAX_LENGTH` is **300**, matching the Space |
+| ZeroGPU hosting | 2 Spaces per free account | Account must be >30 days old, email verified |
+| Supabase storage | 500 MB | System voices take 30 MB; output runs ~2.9 MB/min |
+| Supabase idle | Pauses after 7 days | Unpause from the dashboard |
+| Prisma Postgres | Sleeps when idle | A first request may fail `P1001`, then succeed |
+
+Raising `TEXT_MAX_LENGTH` means raising the cap inside the Space's `app.py` too, and it burns GPU
+quota proportionally.
+
+## Generation parameters
+
+Chatterbox exposes different knobs than upstream's Modal build, so the sliders map to the model's
+actual controls:
+
+| Slider | Parameter |
+|---|---|
+| Creativity | `temperature` |
+| Expression Range | `exaggeration` |
+| Natural Flow | `cfg_weight` |
 
 ## Scripts
 
 | Command | Description |
-|---------|-------------|
-| `npm run dev` | Start dev server |
-| `npm run build` | Production build |
+|---|---|
+| `npm run dev` | Dev server |
+| `npm run build` | Production build (also the only typecheck) |
 | `npm run start` | Start production server |
-| `npm run lint` | Lint with ESLint |
-| `npm run sync-api` | Regenerate Chatterbox API types from OpenAPI spec |
+| `npm run lint` | ESLint |
+
+There is no test suite; verification is `npm run lint` plus `npm run build`.
 
 ## Acknowledgements
 
-- [Chatterbox TTS](https://github.com/resemble-ai/chatterbox) by Resemble AI - the open-source zero-shot voice cloning model powering speech generation
-- [Modal](https://cwa.run/modal-tts) - serverless GPU deployment example and [voice sample pack](https://modal-cdn.com/blog/audio/chatterbox-tts-voices.zip)
+- [Resonance](https://github.com/code-with-antonio/resonance) by Code With Antonio — the original project
+- [Chatterbox TTS](https://github.com/resemble-ai/chatterbox) by Resemble AI — the model
+- [Modal's voice sample pack](https://modal-cdn.com/blog/audio/chatterbox-tts-voices.zip) — the 20 system voices

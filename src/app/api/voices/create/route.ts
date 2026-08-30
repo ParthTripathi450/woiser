@@ -14,6 +14,9 @@ const createVoiceSchema = z.object({
   description: z.string().nullish(),
 });
 
+// Large voice uploads over a slow connection can exceed the default ceiling.
+export const maxDuration = 300;
+
 const MAX_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 const MIN_AUDIO_DURATION_SECONDS = 10;
 
