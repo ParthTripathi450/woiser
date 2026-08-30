@@ -1,6 +1,6 @@
 <div align="center">
 
-<h1>Resonance</h1>
+<h1>Woiser</h1>
 
 <p>Open-source text-to-speech and voice cloning, running entirely on free infrastructure.</p>
 
@@ -65,8 +65,8 @@ the inputs to receive an event id, then read the result off an SSE stream.
 ### 1. Install
 
 ```bash
-git clone <your-fork-url>
-cd resonance
+git clone https://github.com/ParthTripathi450/woiser.git
+cd woiser
 npm install
 cp .env.example .env
 ```
